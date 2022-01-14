@@ -22,9 +22,9 @@ type Conf struct {
 	DataName   string
 	Data       interface{}
 	Timeout    time.Duration
-	WebTimeout time.Duration
-	WebMax     int
-	WebMock    bool
+	NetTimeout time.Duration
+	NetMax     int
+	NetMock    bool
 	Init       func(*goja.Runtime)
 	Logger     logger
 }
@@ -33,8 +33,9 @@ type AS struct {
 	cf      *Conf
 	vm      *goja.Runtime
 	Result  goja.Value
-	WebReqs int
-	WebErrs int
+	NetReqs int
+	NetErrs int
+	NetTime time.Duration
 }
 
 const (
@@ -48,8 +49,8 @@ func Run(cf *Conf) (*AS, error) {
 	as := &AS{cf: cf, vm: vm}
 	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", false))
 
-	if cf.WebTimeout == 0 {
-		cf.WebTimeout = defaultWebTimeout
+	if cf.NetTimeout == 0 {
+		cf.NetTimeout = defaultWebTimeout
 	}
 	if cf.Timeout == 0 {
 		cf.Timeout = defaultTimeout

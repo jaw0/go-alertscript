@@ -69,8 +69,8 @@ func main() {
 	_, err = alertscript.Run(&alertscript.Conf{
 		Script:   string(script),
 		Timeout:  time.Second,
-		WebMock:  web_n,
-		WebMax:   2,
+		NetMock:  web_n,
+		NetMax:   2,
 		Logger:   Logger{},
 		DataName: "event",
 		Data:     data,

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/dop251/goja"
 )
@@ -38,20 +39,20 @@ func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
 	as.vm.ExportTo(c.Arguments[2], &hdrs)
 	as.vm.ExportTo(c.Arguments[3], &content)
 
-	if as.WebReqs >= as.cf.WebMax {
+	if as.NetReqs >= as.cf.NetMax {
 		return nil, fmt.Errorf("Maximum number of web requests exceeded!")
 	}
 
-	as.WebReqs++
+	as.NetReqs++
 
 	// for debugging
 	as.Diagf("web: %s %s\nheaders: %+v\nbody: %s\n", method, url, hdrs, content)
-	if as.cf.WebMock {
+	if as.cf.NetMock {
 		return &Result{200, "not tried", ""}, nil
 	}
 
 	// build request
-	client := &http.Client{Timeout: as.cf.WebTimeout}
+	client := &http.Client{Timeout: as.cf.NetTimeout}
 	req, err := http.NewRequest(method, url, bytes.NewReader([]byte(content)))
 	if err != nil {
 		return nil, fmt.Errorf("webRequest: error %v", err)
@@ -61,18 +62,20 @@ func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
 		req.Header.Set(k, v)
 	}
 
+	t0 := time.Now()
 	// send request
 	resp, err := client.Do(req)
+	as.NetTime += time.Now().Sub(t0) // track time spent doing netio
 
 	if err != nil {
-		as.WebErrs++
+		as.NetErrs++
 		as.Logf("Request Failed: %v", err)
 		return &Result{500, "Request Failed", err.Error()}, nil
 	}
 
 	if resp.Status[0] != '2' {
 		as.Logf("Request Failed: %s", resp.Status)
-		as.WebErrs++
+		as.NetErrs++
 	} else {
 		as.Diag(resp.Status)
 	}
