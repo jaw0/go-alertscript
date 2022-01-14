@@ -12,6 +12,11 @@ import (
 	"github.com/dop251/goja"
 )
 
+type logger interface {
+	Debug(string, ...interface{})
+	Verbose(string, ...interface{})
+}
+
 type Conf struct {
 	Script     string
 	DataName   string
@@ -20,13 +25,13 @@ type Conf struct {
 	WebTimeout time.Duration
 	WebMax     int
 	WebMock    bool
-	Diag       func(string)
+	Init       func(*goja.Runtime)
+	Logger     logger
 }
 
 type AS struct {
 	cf      *Conf
 	vm      *goja.Runtime
-	Output  string
 	Result  goja.Value
 	WebReqs int
 	WebErrs int
@@ -55,11 +60,16 @@ func Run(cf *Conf) (*AS, error) {
 		as.Log(joinJsArgs(c))
 		return nil
 	}
+	debugger := func(c goja.FunctionCall) goja.Value {
+		as.Diag(joinJsArgs(c))
+		return nil
+	}
 
 	vm.Set("console", map[string]interface{}{
 		"log":   logger,
 		"warn":  logger,
 		"error": logger,
+		"debug": debugger,
 	})
 
 	// provide useful functions and data
@@ -71,7 +81,11 @@ func Run(cf *Conf) (*AS, error) {
 		return vm.ToValue(res)
 	})
 
+	// install js functions
 	installUtilFuncs(vm)
+	if cf.Init != nil {
+		cf.Init(vm)
+	}
 	// RSN - more functions
 
 	if cf.DataName != "" {
@@ -97,22 +111,25 @@ func Run(cf *Conf) (*AS, error) {
 	return as, err
 }
 
+// rom console.log (et al)
 func (as *AS) Log(s string) {
-	as.Output += s + "\n"
-	as.Diag(s)
+	as.Logf("%s", s)
 }
 func (as *AS) Logf(s string, args ...interface{}) {
-	as.Log(fmt.Sprintf(s, args...))
-}
-
-func (as *AS) Diag(s string) {
-	if as.cf.Diag != nil {
-		as.cf.Diag(s)
+	if as.cf.Logger != nil {
+		as.cf.Logger.Verbose(s, args...)
 	}
 }
 
+// from internals
+func (as *AS) Diag(s string) {
+	as.Diagf("%s", s)
+}
+
 func (as *AS) Diagf(s string, args ...interface{}) {
-	as.Diag(fmt.Sprintf(s, args...))
+	if as.cf.Logger != nil {
+		as.cf.Logger.Debug(s, args...)
+	}
 }
 
 func joinJsArgs(c goja.FunctionCall) string {

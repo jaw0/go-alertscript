@@ -28,6 +28,8 @@ type event struct {
 	Country string `json:"country"`
 }
 
+type Logger struct{}
+
 func main() {
 	web_n := false
 	var evtType string
@@ -69,7 +71,7 @@ func main() {
 		Timeout:  time.Second,
 		WebMock:  web_n,
 		WebMax:   2,
-		Diag:     func(s string) { fmt.Printf("> %s\n", s) },
+		Logger:   Logger{},
 		DataName: "event",
 		Data:     data,
 	})
@@ -78,4 +80,11 @@ func main() {
 		fmt.Printf("ERROR: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func (l Logger) Verbose(s string, p ...interface{}) {
+	fmt.Printf("%s\n", fmt.Sprintf(s, p...))
+}
+func (l Logger) Debug(s string, p ...interface{}) {
+	fmt.Printf("[diag]> %s\n", fmt.Sprintf(s, p...))
 }
