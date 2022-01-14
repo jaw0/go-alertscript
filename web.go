@@ -16,9 +16,10 @@ import (
 )
 
 type Result struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Body    string `json:"body"`
+	Code    int                 `json:"code"`
+	Message string              `json:"message"`
+	Body    string              `json:"body"`
+	Header  map[string][]string `json:"header"`
 }
 
 func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
@@ -30,14 +31,19 @@ func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
 	hdrs := map[string]string{}
 	content := ""
 
-	if len(c.Arguments) != 4 {
+	if len(c.Arguments) < 2 {
 		return nil, fmt.Errorf("webRequest: incorrect number of parameters (url, method, headers, body)")
 	}
 
 	as.vm.ExportTo(c.Arguments[0], &url)
 	as.vm.ExportTo(c.Arguments[1], &method)
-	as.vm.ExportTo(c.Arguments[2], &hdrs)
-	as.vm.ExportTo(c.Arguments[3], &content)
+
+	if len(c.Arguments) > 2 {
+		as.vm.ExportTo(c.Arguments[2], &hdrs)
+	}
+	if len(c.Arguments) > 3 {
+		as.vm.ExportTo(c.Arguments[3], &content)
+	}
 
 	if as.NetReqs >= as.cf.NetMax {
 		return nil, fmt.Errorf("Maximum number of web requests exceeded!")
@@ -48,7 +54,7 @@ func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
 	// for debugging
 	as.Diagf("web: %s %s\nheaders: %+v\nbody: %s\n", method, url, hdrs, content)
 	if as.cf.NetMock {
-		return &Result{200, "not tried", ""}, nil
+		return &Result{200, "not tried", "", nil}, nil
 	}
 
 	// build request
@@ -70,7 +76,7 @@ func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
 	if err != nil {
 		as.NetErrs++
 		as.Logf("Request Failed: %v", err)
-		return &Result{500, "Request Failed", err.Error()}, nil
+		return &Result{500, "Request Failed", err.Error(), nil}, nil
 	}
 
 	if resp.Status[0] != '2' {
@@ -81,5 +87,5 @@ func (as *AS) webRequest(c goja.FunctionCall) (*Result, error) {
 	}
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	return &Result{resp.StatusCode, resp.Status[4:], string(body)}, nil
+	return &Result{resp.StatusCode, resp.Status[4:], string(body), resp.Header}, nil
 }

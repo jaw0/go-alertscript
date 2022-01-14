@@ -150,7 +150,7 @@ func joinJsArgs(c goja.FunctionCall) string {
 var scriptRuntime = goja.MustCompile("runtime", `
 var web = {
     request: webRequest,
-    get:  function(url){ return webRequest(url, 'GET', null, null) },
+    get:  function(url){ return webRequest(url, 'GET') },
     post: function(url, hdrs, body){ return webRequest(url, 'POST', hdrs, body) },
     post_json: function(url, hdrs, data){
 	if( !hdrs ) hdrs = {}
