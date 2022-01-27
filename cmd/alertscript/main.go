@@ -88,3 +88,6 @@ func (l Logger) Verbose(s string, p ...interface{}) {
 func (l Logger) Debug(s string, p ...interface{}) {
 	fmt.Printf("[diag]> %s\n", fmt.Sprintf(s, p...))
 }
+func (l Logger) Error(err error) {
+	fmt.Printf("[error]> %v\n", err)
+}

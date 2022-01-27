@@ -9,12 +9,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/deduce-com/go-alertscript/module"
 	"github.com/dop251/goja"
+
+	_ "github.com/deduce-com/go-alertscript/module/std"
 )
 
 type logger interface {
 	Debug(string, ...interface{})
 	Verbose(string, ...interface{})
+	Error(error)
 }
 
 type Conf struct {
@@ -30,12 +34,17 @@ type Conf struct {
 }
 
 type AS struct {
-	cf      *Conf
-	vm      *goja.Runtime
-	Result  goja.Value
-	NetReqs int
-	NetErrs int
-	NetTime time.Duration
+	cf        *Conf
+	vm        *goja.Runtime
+	Result    goja.Value
+	NetReqs   int
+	LocalReqs int
+	NetErrs   int
+	NetTime   time.Duration
+}
+
+type mAS struct {
+	as *AS
 }
 
 const (
@@ -47,7 +56,7 @@ func Run(cf *Conf) (*AS, error) {
 
 	vm := goja.New()
 	as := &AS{cf: cf, vm: vm}
-	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", false))
+	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
 	if cf.NetTimeout == 0 {
 		cf.NetTimeout = defaultWebTimeout
@@ -65,28 +74,24 @@ func Run(cf *Conf) (*AS, error) {
 		as.Diag(joinJsArgs(c))
 		return nil
 	}
+	erroror := func(c goja.FunctionCall) goja.Value {
+		cf.Logger.Error(fmt.Errorf("%s", joinJsArgs(c)))
+		return nil
+	}
 
 	vm.Set("console", map[string]interface{}{
 		"log":   logger,
 		"warn":  logger,
-		"error": logger,
+		"error": erroror,
 		"debug": debugger,
 	})
 
 	// provide useful functions and data
-	vm.Set("webRequest", func(c goja.FunctionCall) goja.Value {
-		res, err := as.webRequest(c)
-		if err != nil {
-			vm.Interrupt(err)
-		}
-		return vm.ToValue(res)
-	})
-
-	// install js functions
-	installUtilFuncs(vm)
+	module.InstallModule(mAS{as}, vm)
 	if cf.Init != nil {
 		cf.Init(vm)
 	}
+
 	// RSN - more functions
 
 	if cf.DataName != "" {
@@ -96,6 +101,7 @@ func Run(cf *Conf) (*AS, error) {
 	// run common runtime code to set up more functions and data
 	_, err := vm.RunProgram(scriptRuntime)
 	if err != nil {
+		cf.Logger.Error(err)
 		return nil, err
 	}
 
@@ -108,6 +114,10 @@ func Run(cf *Conf) (*AS, error) {
 	// run the script
 	res, err := vm.RunString(cf.Script)
 	as.Result = res
+
+	if err != nil {
+		cf.Logger.Error(err)
+	}
 
 	return as, err
 }
@@ -145,27 +155,75 @@ func joinJsArgs(c goja.FunctionCall) string {
 	return out
 }
 
+// ****************************************************************
+// available to modules
+
+func (m mAS) Logf(s string, args ...interface{}) {
+	m.as.Logf(s, args...)
+}
+func (m mAS) Diagf(s string, args ...interface{}) {
+	m.as.Diagf(s, args...)
+}
+
+// for ordinary network requests
+func (m mAS) NetIOHeavy() (func(), error) {
+	m.as.NetReqs++
+
+	if m.as.NetReqs >= m.as.cf.NetMax {
+		err := fmt.Errorf("Maximum number of web requests exceeded!")
+		m.as.vm.Interrupt(err)
+		return nil, err
+	}
+
+	t0 := time.Now() // start timing
+
+	return func() {
+		// stop timing
+		dur := time.Now().Sub(t0)
+		m.as.NetTime += dur
+	}, nil
+}
+
+// for local (on-net) network requests
+func (m mAS) NetIOLight() (func(), error) {
+	m.as.LocalReqs++
+
+	t0 := time.Now() // start timing
+	return func() {
+		// stop timing
+		dur := time.Now().Sub(t0)
+		m.as.NetTime += dur
+	}, nil
+}
+
+func (m mAS) NetIOErr() {
+	m.as.NetErrs++
+}
+
+func (m mAS) Fatal(err error) {
+	m.as.NetErrs++
+	m.as.cf.Logger.Error(err)
+	m.as.vm.Interrupt(err)
+}
+func (m mAS) Error(err error) {
+	m.as.NetErrs++
+	m.as.cf.Logger.Error(err)
+}
+
+func (m mAS) IsDryRun() bool {
+	return m.as.cf.NetMock
+}
+
+func (m mAS) NetTimeout() time.Duration {
+	return m.as.cf.NetTimeout
+}
+
+func (m mAS) VM() *goja.Runtime {
+	return m.as.vm
+}
+
 // ################################################################
 
 var scriptRuntime = goja.MustCompile("runtime", `
-var web = {
-    request: webRequest,
-    get:  function(url){ return webRequest(url, 'GET') },
-    post: function(url, hdrs, body){ return webRequest(url, 'POST', hdrs, body) },
-    post_json: function(url, hdrs, data){
-	if( !hdrs ) hdrs = {}
-        hdrs['Content-Type'] = 'application/json'
-        var body = JSON.stringify( data )
-        return webRequest(url, 'POST', hdrs, body)
-    },
-    post_urlencoded: function(url, hdrs, data){
-	if( !hdrs ) hdrs = {}
-        hdrs['Content-Type'] = 'application/x-www-form-urlencoded'
-        var k, args=[]
-        for (k in data){
-            args.push(encodeURIComponent(k) + "=" + encodeURIComponent(data[k]))
-        }
-        return webRequest(url, 'POST', hdrs, args.join("&"))
-    }
-}
+var web = module('std/web')
 `, false)
