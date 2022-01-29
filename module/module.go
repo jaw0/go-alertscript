@@ -23,6 +23,7 @@ type MASer interface {
 	Diagf(string, ...interface{})
 	Error(error)
 	Fatal(error)
+	TraceInfo() string
 }
 
 type Installer func(MASer, *goja.Runtime, []interface{}) interface{}

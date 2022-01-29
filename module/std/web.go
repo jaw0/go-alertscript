@@ -7,9 +7,13 @@ package modstd
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509/pkix"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/deduce-com/go-alertscript/module"
 	"github.com/dop251/goja"
@@ -32,6 +36,36 @@ type WebResult struct {
 	Message string              `json:"message"`
 	Body    string              `json:"body"`
 	Header  map[string][]string `json:"header"`
+	tls     *tls.ConnectionState
+}
+
+// QQQ - provide more / less?
+type TLSResult struct {
+	Version            uint16 `json:"version"`
+	CipherSuite        uint16 `json:"cipher_suite"`
+	NegotiatedProtocol string `json:"negotiated_protocol"`
+	ServerName         string `json:"server_name"`
+	Certs              int    `json:"n_certs"`
+}
+
+type TLSCert struct {
+	Signature             []byte     `json:"signature"`
+	SignatureAlgorithm    string     `json:"signature_alg"`
+	PublicKeyAlgorithm    string     `json:"signature_alg"`
+	Version               int        `json:"version"`
+	SerialNumber          string     `json:"serial_number"`
+	Issuer                pkix.Name  `json:"issuer"`
+	Subject               pkix.Name  `json:"subject"`
+	NotBefore             int64      `json:"not_before"` // converted to js units
+	NotAfter              int64      `json:"not_after"`  // converted to js units
+	KeyUsage              int32      `json:"key_usage"`
+	SubjectKeyId          []byte     `json:"subject_key_id"`
+	AuthorityKeyId        []byte     `json:"authority_key_id"`
+	DNSNames              []string   `json:"dns_names"`
+	EmailAddresses        []string   `json:"email_addresses"`
+	IPAddresses           []net.IP   `json:"ip_addresses"`
+	URIs                  []*url.URL `json:"uris"`
+	CRLDistributionPoints []string   `json:"crl_distribution_points"`
 }
 
 func installWeb(aser module.MASer, vm *goja.Runtime, args []interface{}) interface{} {
@@ -57,7 +91,7 @@ func (m *modWeb) Request(url, method string, hdrs map[string][]string, content s
 	// for debugging
 	m.as.Diagf("web: %s %s\nheaders: %+v\nbody: %s\n", method, url, hdrs, content)
 	if m.as.IsDryRun() {
-		return &WebResult{200, "not tried", "", nil}, nil
+		return &WebResult{Code: 200, Message: "not tried"}, nil
 	}
 
 	// build request
@@ -76,7 +110,7 @@ func (m *modWeb) Request(url, method string, hdrs map[string][]string, content s
 	if err != nil {
 		m.as.NetIOErr()
 		m.as.Logf("Request Failed: %v", err)
-		return &WebResult{500, "Request Failed", err.Error(), nil}, nil
+		return &WebResult{Code: 500, Message: "Request Failed", Body: err.Error()}, nil
 	}
 
 	if resp.Status[0] != '2' {
@@ -87,8 +121,59 @@ func (m *modWeb) Request(url, method string, hdrs map[string][]string, content s
 	}
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	return &WebResult{resp.StatusCode, resp.Status[4:], string(body), resp.Header}, nil
+	ret := &WebResult{Code: resp.StatusCode, Message: resp.Status[4:], Body: string(body), Header: resp.Header, tls: resp.TLS}
 
+	return ret, nil
+
+}
+
+// get the tls details from the result
+func (wr *WebResult) Tls() *TLSResult {
+	tls := wr.tls
+
+	if tls == nil {
+		return nil
+	}
+	return &TLSResult{
+		Version:            tls.Version,
+		CipherSuite:        tls.CipherSuite,
+		NegotiatedProtocol: tls.NegotiatedProtocol,
+		ServerName:         tls.ServerName,
+		Certs:              len(tls.PeerCertificates),
+	}
+
+}
+
+// get the tls cert details from the result
+func (wr *WebResult) Cert(n int) *TLSCert {
+	tls := wr.tls
+
+	if tls == nil || n >= len(tls.PeerCertificates) {
+		return nil
+	}
+
+	c := tls.PeerCertificates[n]
+
+	return &TLSCert{
+		Signature:             c.Signature,
+		SignatureAlgorithm:    c.SignatureAlgorithm.String(),
+		PublicKeyAlgorithm:    c.PublicKeyAlgorithm.String(),
+		Version:               c.Version,
+		SerialNumber:          c.SerialNumber.String(),
+		Issuer:                c.Issuer,
+		Subject:               c.Subject,
+		KeyUsage:              int32(c.KeyUsage),
+		SubjectKeyId:          c.SubjectKeyId,
+		AuthorityKeyId:        c.AuthorityKeyId,
+		DNSNames:              c.DNSNames,
+		EmailAddresses:        c.EmailAddresses,
+		IPAddresses:           c.IPAddresses,
+		URIs:                  c.URIs,
+		CRLDistributionPoints: c.CRLDistributionPoints,
+		NotBefore:             c.NotBefore.UTC().UnixNano() / 1e6,
+		NotAfter:              c.NotAfter.UTC().UnixNano() / 1e6,
+	}
+	return nil
 }
 
 var webGet = goja.MustCompile("runtime", `(function(url){ return this.request(url, 'GET') })`, false)

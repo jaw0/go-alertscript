@@ -31,6 +31,7 @@ type Conf struct {
 	NetMock    bool
 	Init       func(*goja.Runtime)
 	Logger     logger
+	Trace      string
 }
 
 type AS struct {
@@ -220,6 +221,10 @@ func (m mAS) NetTimeout() time.Duration {
 
 func (m mAS) VM() *goja.Runtime {
 	return m.as.vm
+}
+
+func (m mAS) TraceInfo() string {
+	return m.as.cf.Trace
 }
 
 // ################################################################
