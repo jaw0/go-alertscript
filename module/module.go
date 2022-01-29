@@ -53,5 +53,6 @@ func jsModule(as MASer, name string, vm *goja.Runtime, args []interface{}) inter
 		as.VM().Interrupt(fmt.Errorf("module not fount: '%s'", name))
 	}
 
+	args = append([]interface{}{name}, args...) // add name to args
 	return f(as, vm, args)
 }
