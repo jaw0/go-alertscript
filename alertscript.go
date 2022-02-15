@@ -22,21 +22,26 @@ type logger interface {
 }
 
 type Conf struct {
-	Script     string
-	DataName   string
-	Data       interface{}
-	Timeout    time.Duration
-	NetTimeout time.Duration
-	NetMax     int
-	NetMock    bool
-	Init       func(*goja.Runtime)
-	Logger     logger
-	Trace      string
+	Script      string
+	DataName    string
+	Data        interface{}
+	Timeout     time.Duration
+	NetTimeout  time.Duration
+	HardTimeout time.Duration
+	NetMax      int
+	NetMock     bool
+	Init        func(*goja.Runtime)
+	Logger      logger
+	Trace       string
 }
 
 type AS struct {
 	cf        *Conf
 	vm        *goja.Runtime
+	t0        time.Time
+	t1        time.Time
+	tacc      time.Duration
+	timer     *time.Timer
 	Result    goja.Value
 	NetReqs   int
 	LocalReqs int
@@ -51,6 +56,12 @@ type mAS struct {
 const (
 	defaultTimeout    = 2 * time.Second
 	defaultWebTimeout = 1 * time.Second
+	defaultHard       = 30 * time.Second
+)
+
+const (
+	CTL_PAUSE  = 0
+	CTL_RESUME = 1
 )
 
 func Run(cf *Conf) (*AS, error) {
@@ -64,6 +75,9 @@ func Run(cf *Conf) (*AS, error) {
 	}
 	if cf.Timeout == 0 {
 		cf.Timeout = defaultTimeout
+	}
+	if cf.HardTimeout == 0 {
+		cf.HardTimeout = defaultHard
 	}
 
 	// wire up console.log output
@@ -107,10 +121,12 @@ func Run(cf *Conf) (*AS, error) {
 	}
 
 	// enforce maximum runtime
-	timer := time.AfterFunc(cf.Timeout, func() {
+	as.t0 = time.Now()
+	as.t1 = as.t0
+	as.timer = time.AfterFunc(cf.Timeout, func() {
 		vm.Interrupt("timeout - maximum runtime exceeded!")
 	})
-	defer timer.Stop()
+	defer as.timer.Stop()
 
 	// run the script
 	res, err := vm.RunString(cf.Script)
@@ -156,6 +172,25 @@ func joinJsArgs(c goja.FunctionCall) string {
 	return out
 }
 
+func (as *AS) pauseTimer() {
+	// update the state, move the timer to the hard limit
+	t := time.Now()
+	as.tacc += t.Sub(as.t1)
+	as.t1 = t
+	hard := as.t0.Add(as.cf.HardTimeout).Sub(t)
+	as.timer.Reset(hard)
+}
+func (as *AS) resumeTimer() {
+	// move the time to the std limit
+	t := time.Now()
+	as.t1 = t
+	tick := as.cf.Timeout - as.tacc
+	if tick < 0 {
+		tick = 0
+	}
+	as.timer.Reset(tick)
+}
+
 // ****************************************************************
 // available to modules
 
@@ -170,18 +205,20 @@ func (m mAS) Diagf(s string, args ...interface{}) {
 func (m mAS) NetIOHeavy() (func(), error) {
 	m.as.NetReqs++
 
-	if m.as.NetReqs >= m.as.cf.NetMax {
+	if m.as.NetReqs > m.as.cf.NetMax {
 		err := fmt.Errorf("Maximum number of web requests exceeded!")
 		m.as.vm.Interrupt(err)
 		return nil, err
 	}
 
+	m.as.pauseTimer()
 	t0 := time.Now() // start timing
 
 	return func() {
 		// stop timing
 		dur := time.Now().Sub(t0)
 		m.as.NetTime += dur
+		m.as.resumeTimer()
 	}, nil
 }
 
@@ -189,11 +226,14 @@ func (m mAS) NetIOHeavy() (func(), error) {
 func (m mAS) NetIOLight() (func(), error) {
 	m.as.LocalReqs++
 
+	m.as.pauseTimer()
 	t0 := time.Now() // start timing
+
 	return func() {
 		// stop timing
 		dur := time.Now().Sub(t0)
 		m.as.NetTime += dur
+		m.as.resumeTimer()
 	}, nil
 }
 
