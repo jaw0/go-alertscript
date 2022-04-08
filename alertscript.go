@@ -12,6 +12,11 @@ import (
 	"github.com/deduce-com/go-alertscript/module"
 	"github.com/dop251/goja"
 
+	_ "github.com/deduce-com/go-alertscript/module/ext/mailchimp"
+	_ "github.com/deduce-com/go-alertscript/module/ext/s3"
+	_ "github.com/deduce-com/go-alertscript/module/ext/sendgrid"
+	_ "github.com/deduce-com/go-alertscript/module/ext/slack"
+	_ "github.com/deduce-com/go-alertscript/module/ext/twilio"
 	_ "github.com/deduce-com/go-alertscript/module/std"
 )
 
@@ -33,6 +38,8 @@ type Conf struct {
 	Init        func(*goja.Runtime)
 	Logger      logger
 	Trace       string
+	Federation  string
+	DataDir     string
 }
 
 type AS struct {
@@ -265,6 +272,10 @@ func (m mAS) VM() *goja.Runtime {
 
 func (m mAS) TraceInfo() string {
 	return m.as.cf.Trace
+}
+
+func (m mAS) Federation() string {
+	return m.as.cf.Federation
 }
 
 // ################################################################

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/deduce-com/go-alertscript"
+	_ "github.com/deduce-com/go-alertscript/module/std/memstore" // mock kvs
 )
 
 type event struct {

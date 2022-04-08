@@ -60,6 +60,10 @@ func installSMTP(aser module.MASer, vm *goja.Runtime, args []interface{}) interf
 	return m
 }
 
+func NewSmtp(aser module.MASer) *modSMTP {
+	return &modSMTP{aser}
+}
+
 func (m *modSMTP) Send(srv *SmtpServer, msg *SmtpMsg) (*SmtpResult, error) {
 
 	if srv == nil || msg == nil {

@@ -1,0 +1,46 @@
+
+import (
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+func x() {
+
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-west-2")},
+	)
+
+	// Create S3 service client
+	svc := s3.New(sess)
+
+	// ****************************************************************
+
+	creds := credentials.NewStaticCredentialsProvider(your_access_key, your_secret_key, "")
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithCredentialsProvider(creds), config.WithRegion(AWS_S3_BUCKET))
+	if err != nil {
+		log.Printf("error: %v", err)
+		return
+	}
+
+	awsS3Client = s3.NewFromConfig(cfg)
+
+	// local data -> s3
+	uploader := manager.NewUploader(awsS3Client)
+	result, err := uploader.Upload(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(AWS_S3_BUCKET),
+		Key:    aws.String(filename),
+		Body:   file,
+	})
+
+	// s3 -> local
+	downloader := manager.NewDownloader(awsS3Client)
+	numBytes, err := downloader.Download(context.TODO(), newFile, &s3.GetObjectInput{
+		Bucket: aws.String(AWS_S3_BUCKET),
+		Key:    aws.String(key),
+	})
+
+}
+

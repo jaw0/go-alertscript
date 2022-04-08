@@ -24,6 +24,7 @@ type MASer interface {
 	Error(error)
 	Fatal(error)
 	TraceInfo() string
+	Federation() string
 }
 
 type Installer func(MASer, *goja.Runtime, []interface{}) interface{}

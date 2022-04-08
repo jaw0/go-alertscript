@@ -77,6 +77,10 @@ func installWeb(aser module.MASer, vm *goja.Runtime, args []interface{}) interfa
 	return m
 }
 
+func NewWeb(aser module.MASer) *modWeb {
+	return &modWeb{aser, nil, nil, nil, nil}
+}
+
 func (m *modWeb) Request(url, method string, hdrs map[string][]string, content string) (*WebResult, error) {
 
 	closer, err := m.as.NetIOHeavy()
