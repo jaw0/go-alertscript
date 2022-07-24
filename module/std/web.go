@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/dop251/goja"
 )
 

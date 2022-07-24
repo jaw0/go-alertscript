@@ -12,7 +12,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/dop251/goja"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"

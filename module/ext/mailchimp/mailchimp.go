@@ -8,8 +8,8 @@ package modmailchimp
 import (
 	"fmt"
 
-	"github.com/deduce-com/go-alertscript/module"
-	"github.com/deduce-com/go-alertscript/module/std"
+	"github.com/jaw0/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module/std"
 	"github.com/dop251/goja"
 )
 

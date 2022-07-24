@@ -9,15 +9,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/dop251/goja"
 
-	_ "github.com/deduce-com/go-alertscript/module/ext/mailchimp"
-	_ "github.com/deduce-com/go-alertscript/module/ext/s3"
-	_ "github.com/deduce-com/go-alertscript/module/ext/sendgrid"
-	_ "github.com/deduce-com/go-alertscript/module/ext/slack"
-	_ "github.com/deduce-com/go-alertscript/module/ext/twilio"
-	_ "github.com/deduce-com/go-alertscript/module/std"
+	_ "github.com/jaw0/go-alertscript/module/ext/mailchimp"
+	_ "github.com/jaw0/go-alertscript/module/ext/s3"
+	_ "github.com/jaw0/go-alertscript/module/ext/sendgrid"
+	_ "github.com/jaw0/go-alertscript/module/ext/slack"
+	_ "github.com/jaw0/go-alertscript/module/ext/twilio"
+	_ "github.com/jaw0/go-alertscript/module/std"
+	_ "github.com/jaw0/go-alertscript/module/std/syslog"
 )
 
 type logger interface {

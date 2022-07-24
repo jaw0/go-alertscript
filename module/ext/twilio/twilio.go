@@ -8,7 +8,7 @@ package modtwilio
 import (
 	"fmt"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/dop251/goja"
 	// these are awful. just awful. absolutely awful.
 	"github.com/twilio/twilio-go"

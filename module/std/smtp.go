@@ -11,7 +11,7 @@ import (
 	"net"
 	"net/smtp"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/domodwyer/mailyak"
 	"github.com/dop251/goja"
 )

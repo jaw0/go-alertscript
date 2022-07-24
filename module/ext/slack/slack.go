@@ -8,7 +8,7 @@ package modslack
 import (
 	"context"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/dop251/goja"
 	"github.com/slack-go/slack"
 )

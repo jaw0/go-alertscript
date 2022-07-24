@@ -10,12 +10,12 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/deduce-com/go-alertscript/module"
+	"github.com/jaw0/go-alertscript/module"
 	"github.com/dop251/goja"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 
-	"github.com/deduce-com/go-alertscript/module/std"
+	"github.com/jaw0/go-alertscript/module/std"
 )
 
 var _ = module.Register("ext/sendgrid", install)
